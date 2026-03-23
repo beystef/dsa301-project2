@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whoop Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-page:    #F0F2F6;
+    --bg-card:    #FFFFFF;
+    --bg-surface: #F4F4F2;
+    --border:     rgba(0,0,0,0.10);
+    --text-primary:   #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-tertiary:  #a0a0a0;
+    --teal:   #1D9E75;
+    --teal-lt:#E1F5EE;
+    --teal-dk:#0F6E56;
+    --red:    #E24B4A;
+    --blue:   #378ADD;
+    --blue-lt:#E6F1FB;
+    --blue-dk:#185FA5;
+    --purple: #534AB7;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-page:    #111318;
+      --bg-card:    #1C1F27;
+      --bg-surface: #262930;
+      --border:     rgba(255,255,255,0.10);
+      --text-primary:   #E8E8E8;
+      --text-secondary: #A0A0A0;
+      --text-tertiary:  #606060;
+      --teal-lt:#0F3D2E;
+      --teal-dk:#9FE1CB;
+      --blue-lt:#0C2340;
+      --blue-dk:#85B7EB;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-page);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .phone {
+    width: 320px;
+    background: var(--bg-surface);
+    border-radius: 44px;
+    padding: 20px 16px 28px;
+    border: 0.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .notch {
+    width: 80px; height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    margin: 0 auto 8px;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px 4px;
+  }
+  .top-bar .date-label { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .top-bar .date-sub   { font-size: 11px; color: var(--text-tertiary); }
+
+  .card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 14px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .metric-val { font-size: 20px; font-weight: 500; color: var(--text-primary); line-height: 1; }
+  .metric-unit { font-size: 12px; color: var(--text-tertiary); }
+  .metric-sub  { font-size: 11px; margin-top: 4px; }
+
+  .recovery-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 14px 14px;
+  }
+
+  .ready-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--teal-lt);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-top: 8px;
+  }
+  .ready-pill span { font-size: 11px; font-weight: 500; color: var(--teal-dk); }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .card-header-val { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+
+  .legend-row {
+    display: flex;
+    gap: 14px;
+    margin-top: 6px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .legend-swatch {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .sleep-legend {
+    display: flex;
+    gap: 12px;
+    margin-top: 5px;
+  }
+  .sleep-legend span { font-size: 10px; color: var(--text-tertiary); }
+
+  .strain-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  .strain-footer .strain-val { font-size: 11px; font-weight: 500; color: var(--text-primary); }
+  .strain-footer .strain-max { font-size: 10px; color: var(--text-tertiary); }
+
+  .nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 24px 0;
+  }
+  .nav svg { opacity: 0.4; cursor: pointer; }
+  .nav svg:first-child { opacity: 1; }
+
+  svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <div class="top-bar">
+    <span class="date-label">Today</span>
+    <span class="date-sub">Thu, Jan 19</span>
+  </div>
+
+  <!-- Recovery ring -->
+  <div class="card recovery-card">
+    <div class="card-label">Recovery score</div>
+    <svg id="ring" width="140" height="140"></svg>
+    <div class="ready-pill">
+      <svg width="7" height="7"><circle cx="3.5" cy="3.5" r="3.5" fill="#1D9E75"/></svg>
+      <span>Ready to train</span>
+    </div>
+  </div>
+
+  <!-- HRV + RHR -->
+  <div class="grid2">
+    <div class="card">
+      <div class="card-label">HRV</div>
+      <div class="metric-val">68<span class="metric-unit"> ms</span></div>
+      <div class="metric-sub" style="color:#1D9E75;">+11 vs baseline</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Resting HR</div>
+      <div class="metric-val">52<span class="metric-unit"> bpm</span></div>
+      <div class="metric-sub" style="color:#1D9E75;">−4 vs baseline</div>
+    </div>
+  </div>
+
+  <!-- 7-day recovery bars -->
+  <div class="card">
+    <div class="card-label" style="margin-bottom:8px;">7-day recovery</div>
+    <svg id="bars" width="288" height="68"></svg>
+    <div class="legend-row">
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#1D9E75;"></span>Above baseline
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#E24B4A;"></span>Below baseline
+      </div>
+    </div>
+  </div>
+
+  <!-- Sleep stages -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-label" style="margin:0;">Sleep</div>
+      <span class="card-header-val">7h 22m · 82%</span>
+    </div>
+    <svg id="sleep" width="288" height="28"></svg>
+    <div class="sleep-legend">
+      <span>Light</span>
+      <span style="color:#534AB7;">Deep 1h 32m</span>
+      <span style="color:#378ADD;">REM 1h 48m</span>
+    </div>
+  </div>
+
+  <!-- Day strain -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-label" style="margin:0;">Day strain</div>
+      <span style="font-size:11px; color:var(--text-secondary);">CrossFit · 58 min</span>
+    </div>
+    <svg id="strain" width="288" height="20"></svg>
+    <div class="strain-footer">
+      <span class="strain-val">13.1</span>
+      <span class="strain-max">/ 21 max</span>
+    </div>
+  </div>
+
+  <!-- Nav bar -->
+  <div class="nav">
+    <!-- Home -->
+    <svg width="22" height="22" viewBox="0 0 22 22">
+      <rect x="3" y="3" width="7" height="7" rx="2" fill="#1D9E75"/>
+      <rect x="12" y="3" width="7" height="7" rx="2" fill="currentColor"/>
+      <rect x="3" y="12" width="7" height="7" rx="2" fill="currentColor"/>
+      <rect x="12" y="12" width="7" height="7" rx="2" fill="currentColor"/>
+    </svg>
+    <!-- Activity -->
+    <svg width="22" height="22" viewBox="0 0 22 22">
+      <path d="M11 3 C7 3 4 6.5 4 11 C4 15.5 7 19 11 19 C15 19 18 15.5 18 11" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <!-- Trends -->
+    <svg width="22" height="22" viewBox="0 0 22 22">
+      <rect x="3" y="6"  width="16" height="2" rx="1" fill="currentColor"/>
+      <rect x="3" y="10" width="11" height="2" rx="1" fill="currentColor"/>
+      <rect x="3" y="14" width="13" height="2" rx="1" fill="currentColor"/>
+    </svg>
+    <!-- Profile -->
+    <svg width="22" height="22" viewBox="0 0 22 22">
+      <circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      <path d="M4 19 C4 15.5 7 13 11 13 C15 13 18 15.5 18 19" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    </svg>
+  </div>
+</div>
+
+<script>
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+
+  const C = {
+    textPrimary:   isDark ? '#E8E8E8' : '#1a1a1a',
+    textSecondary: isDark ? '#A0A0A0' : '#6b6b6b',
+    textTertiary:  isDark ? '#606060' : '#a0a0a0',
+    bgSurface:     isDark ? '#262930' : '#F4F4F2',
+    bgCard:        isDark ? '#1C1F27' : '#FFFFFF',
+    teal:   '#1D9E75',
+    red:    '#E24B4A',
+    blue:   '#378ADD',
+    purple: '#534AB7',
+  };
+
+  const W = 288;
+
+  /* ── 1. RECOVERY RING ─────────────────────────────────────────── */
+  const recovery = 74;
+  const rW = 140, rH = 140, rCx = 70, rCy = 70;
+  const outerR = 54, innerR = 40;
+
+  const rSvg = d3.select('#ring')
+    .attr('viewBox', `0 0 ${rW} ${rH}`)
+    .attr('width', rW).attr('height', rH);
+
+  const arcBg = d3.arc()
+    .innerRadius(innerR).outerRadius(outerR)
+    .startAngle(-Math.PI * 0.75)
+    .endAngle(Math.PI * 0.75);
+
+  const arcFg = d3.arc()
+    .innerRadius(innerR).outerRadius(outerR)
+    .startAngle(-Math.PI * 0.75)
+    .endAngle(-Math.PI * 0.75 + (recovery / 100) * Math.PI * 1.5)
+    .cornerRadius(4);
+
+  const rG = rSvg.append('g').attr('transform', `translate(${rCx},${rCy})`);
+  rG.append('path').attr('d', arcBg()).attr('fill', C.bgSurface);
+  rG.append('path').attr('d', arcFg()).attr('fill', C.teal);
+
+  rSvg.append('text')
+    .attr('x', rCx).attr('y', rCy - 6)
+    .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+    .attr('font-size', 34).attr('font-weight', 500).attr('fill', C.teal)
+    .text(recovery);
+
+  rSvg.append('text')
+    .attr('x', rCx).attr('y', rCy + 20)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11).attr('fill', C.textTertiary)
+    .text('/ 100');
+
+  /* ── 2. 7-DAY RECOVERY BARS ───────────────────────────────────── */
+  const days = [
+    { d: 'Fri', r: 61, hrv: -5  },
+    { d: 'Sat', r: 55, hrv: -12 },
+    { d: 'Sun', r: 68, hrv:  3  },
+    { d: 'Mon', r: 72, hrv:  8  },
+    { d: 'Tue', r: 63, hrv: -4  },
+    { d: 'Wed', r: 58, hrv: -9  },
+    { d: 'Thu', r: 74, hrv: 11  },
+  ];
+
+  const bH = 68, labelH = 20, chartH = bH - labelH;
+  const bSvg = d3.select('#bars')
+    .attr('width', W).attr('height', bH).attr('viewBox', `0 0 ${W} ${bH}`);
+
+  const xB = d3.scaleBand()
+    .domain(days.map(d => d.d))
+    .range([0, W]).padding(0.28);
+
+  const yB = d3.scaleLinear().domain([0, 100]).range([chartH, 0]);
+
+  days.forEach((day, i) => {
+    const isToday = i === days.length - 1;
+    const x = xB(day.d);
+    const bw = xB.bandwidth();
+    const col = day.hrv >= 0 ? C.teal : C.red;
+    const barTop = yB(day.r);
+    const barH2 = chartH - barTop;
+
+    bSvg.append('rect')
+      .attr('x', x).attr('y', barTop)
+      .attr('width', bw).attr('height', barH2)
+      .attr('rx', 3).attr('fill', col)
+      .attr('opacity', isToday ? 1 : 0.35);
+
+    bSvg.append('text')
+      .attr('x', x + bw / 2).attr('y', barTop - 3)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 9).attr('fill', isToday ? C.textPrimary : C.textTertiary)
+      .attr('font-weight', isToday ? 500 : 400)
+      .text(day.r);
+
+    bSvg.append('text')
+      .attr('x', x + bw / 2).attr('y', bH - 3)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10).attr('fill', isToday ? C.textPrimary : C.textTertiary)
+      .attr('font-weight', isToday ? 500 : 400)
+      .text(day.d);
+  });
+
+  /* ── 3. SLEEP STAGE BAR ───────────────────────────────────────── */
+  const sleepData = [
+    { stage: 'light', hrs: 4.02, col: C.bgSurface },
+    { stage: 'deep',  hrs: 1.53, col: C.purple    },
+    { stage: 'rem',   hrs: 1.80, col: C.blue      },
+  ];
+  const totalSleep = sleepData.reduce((s, d) => s + d.hrs, 0);
+
+  const sSvg = d3.select('#sleep')
+    .attr('width', W).attr('height', 28).attr('viewBox', `0 0 ${W} 28`);
+
+  const xScale = d3.scaleLinear().domain([0, totalSleep]).range([0, W]);
+  let cursor = 0;
+
+  sleepData.forEach((seg, i) => {
+    const segW = xScale(seg.hrs);
+    const rx = i === 0 ? 4 : (i === sleepData.length - 1 ? 4 : 2);
+    sSvg.append('rect')
+      .attr('x', cursor + 1).attr('y', 4)
+      .attr('width', segW - 2).attr('height', 16)
+      .attr('rx', rx).attr('fill', seg.col);
+    cursor += segW;
+  });
+
+  /* ── 4. STRAIN PROGRESS BAR ───────────────────────────────────── */
+  const strainVal = 13.1, strainMax = 21;
+  const stH = 20;
+
+  const stSvg = d3.select('#strain')
+    .attr('width', W).attr('height', stH).attr('viewBox', `0 0 ${W} ${stH}`);
+
+  stSvg.append('rect')
+    .attr('x', 0).attr('y', 6).attr('width', W).attr('height', 8)
+    .attr('rx', 4).attr('fill', C.bgSurface);
+
+  stSvg.append('rect')
+    .attr('x', 0).attr('y', 6)
+    .attr('width', Math.round(W * (strainVal / strainMax))).attr('height', 8)
+    .attr('rx', 4).attr('fill', C.blue);
+
+  const strainPct = strainVal / strainMax;
+  const markerX = Math.round(W * strainPct);
+  stSvg.append('circle')
+    .attr('cx', markerX).attr('cy', 10)
+    .attr('r', 6).attr('fill', C.bgCard)
+    .attr('stroke', C.blue).attr('stroke-width', 2);
+</script>
+</body>
+</html>
